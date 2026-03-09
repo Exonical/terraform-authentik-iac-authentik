@@ -1,0 +1,175 @@
+---
+defaults:
+  authentik:
+    system:
+      system_settings:
+        avatars: "gravatar,initials"
+        default_user_change_name: true
+        default_user_change_email: false
+        default_user_change_username: false
+        event_retention: "days=365"
+        gdpr_compliance: true
+        impersonation: true
+        default_token_duration: "minutes=30"
+        default_token_length: 60
+        reputation_lower_limit: -5
+        reputation_upper_limit: 5
+        pagination_default_page_size: 20
+        pagination_max_page_size: 100
+      brands:
+        default: false
+        branding_title: "authentik"
+        branding_default_flow_background: "/static/dist/assets/images/flow_background.jpg"
+      certificate_key_pairs:
+        name: ""
+      outposts:
+        type: "proxy"
+      service_connections:
+        docker:
+          local: false
+          tls_verification: true
+        kubernetes:
+          local: false
+          verify_ssl: true
+      tokens:
+        intent: "api"
+        expiring: true
+    applications:
+      applications:
+        open_in_new_tab: false
+      providers:
+        oauth2:
+          client_type: "confidential"
+          include_claims_in_id_token: true
+          issuer_mode: "per_provider"
+          sub_mode: "hashed_user_id"
+          access_code_validity: "minutes=1"
+          access_token_validity: "minutes=5"
+          refresh_token_validity: "days=30"
+        saml:
+          assertion_valid_not_before: "minutes=-5"
+          assertion_valid_not_on_or_after: "minutes=5"
+          session_valid_not_on_or_after: "minutes=86400"
+          digest_algorithm: "http://www.w3.org/2001/04/xmlenc#sha256"
+          signature_algorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
+        proxy:
+          internal_host_ssl_validation: true
+        ldap:
+          search_mode: "direct"
+          bind_mode: "direct"
+          tls_server_name: ""
+        radius:
+          mfa_support: true
+        scim:
+          exclude_users_service_account: false
+    directory:
+      users:
+        type: "internal"
+        is_active: true
+      groups:
+        is_superuser: false
+      sources:
+        ldap:
+          enabled: true
+          start_tls: false
+          sni: false
+          peer_certificate_validation: true
+        oauth:
+          enabled: true
+        saml:
+          enabled: true
+        plex:
+          enabled: true
+          allow_friends: true
+        kerberos:
+          enabled: true
+        scim:
+          enabled: true
+    flows_and_stages:
+      flows:
+        designation: "stage_configuration"
+        policy_engine_mode: "any"
+        compatibility_mode: false
+      stages:
+        identification:
+          case_insensitive_matching: true
+          show_matched_user: true
+          show_source_labels: false
+          pretend_user_exists: true
+        password:
+          failed_attempts_before_cancel: 5
+        user_login:
+          session_duration: "seconds=0"
+          remember_me_offset: "seconds=0"
+        user_write:
+          create_users_as_inactive: false
+          create_users_group: ""
+          user_creation_mode: "always_create"
+        email:
+          use_global_settings: true
+          activate_user_on_success: true
+          token_expiry: 30
+        consent:
+          mode: "always_require"
+          consent_expire_in: "weeks=4"
+        authenticator_totp:
+          digits: 6
+        authenticator_webauthn:
+          resident_key_requirement: "preferred"
+          user_verification: "preferred"
+        authenticator_validate:
+          not_configured_action: "deny"
+        authenticator_static:
+          token_count: 6
+          token_length: 12
+        captcha:
+          api_url: "https://www.recaptcha.net/recaptcha/api/siteverify"
+          js_url: "https://www.recaptcha.net/recaptcha/api.js"
+      flow_stage_bindings:
+        order: 0
+        evaluate_on_plan: true
+        re_evaluate_policies: true
+        invalid_response_action: "retry"
+    customization:
+      policies:
+        expression:
+          execution_logging: false
+        event_matcher:
+          action: ""
+        password:
+          amount_digits: 0
+          amount_uppercase: 0
+          amount_lowercase: 0
+          amount_symbols: 0
+          length_min: 0
+          symbol_charset: "!\"#$%%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+          error_message: ""
+          check_static_rules: true
+          check_have_i_been_pwned: false
+          check_zxcvbn: false
+          hibp_allowed_count: 0
+        reputation:
+          check_ip: true
+          check_username: true
+          threshold: -5
+        expiry:
+          deny_only: false
+          days: 0
+      policy_bindings:
+        enabled: true
+        order: 0
+        timeout: 30
+    events:
+      rules:
+        severity: "notice"
+      transports:
+        mode: "local"
+        send_once: false
+    rbac:
+      roles: {}
+    blueprints: {}
+    endpoint_devices:
+      connector_agents: {}
+      device_access_groups: {}
+    tasks:
+      schedules: {}

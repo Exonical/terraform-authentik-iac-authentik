@@ -1,0 +1,10 @@
+---
+authentik:
+  system:
+    system_settings:
+      default_user_change_username: true
+      event_retention: "days=365"
+    brands:
+      - domain: "."
+        default: true
+        branding_title: "My Company"
