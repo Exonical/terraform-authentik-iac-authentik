@@ -1,0 +1,25 @@
+---
+authentik:
+  system:
+    system_settings:
+      default_user_change_username: true
+      event_retention: "days=365"
+    brands:
+      - domain: "test.example.com"
+        default: false
+        branding_title: "Test Brand"
+  applications:
+    providers:
+      oauth2:
+        - name: "test-oauth2-provider"
+          client_id: "test-client-id"
+          authorization_flow: "c010b4a4-4538-49c7-b667-b6429d9b87f4"
+          invalidation_flow: "13e05f7d-bce6-4c53-b2a9-217be00757b5"
+          allowed_redirect_uris:
+            - matching_mode: "strict"
+              url: "http://localhost:8080/callback"
+    applications:
+      - name: "Test Application"
+        slug: "test-application"
+        provider: "test-oauth2-provider"
+        group: "Testing"

@@ -11,3 +11,8 @@ override.tf.json
 *_override.tf.json
 *.tfvars
 *.tfvars.json
+
+# Test environment
+tests/media/
+tests/custom-templates/
+tests/.env

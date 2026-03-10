@@ -4,8 +4,8 @@ resource "authentik_brand" "this" {
   branding_title                  = var.branding_title
   branding_default_flow_background = var.branding_default_flow_background
 
-  branding_logo       = var.branding_logo != "" ? var.branding_logo : null
-  branding_favicon    = var.branding_favicon != "" ? var.branding_favicon : null
+  branding_logo       = var.branding_logo != "" ? var.branding_logo : "/static/dist/assets/icons/icon_left_brand.svg"
+  branding_favicon    = var.branding_favicon != "" ? var.branding_favicon : "/static/dist/assets/icons/icon.png"
   branding_custom_css = var.branding_custom_css != "" ? var.branding_custom_css : null
 
   flow_authentication = var.flow_authentication != "" ? var.flow_authentication : null
