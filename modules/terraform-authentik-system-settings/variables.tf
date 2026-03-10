@@ -81,3 +81,9 @@ variable "pagination_max_page_size" {
   type        = number
   default     = 100
 }
+
+variable "flags" {
+  description = "System flags in JSON format."
+  type        = string
+  default     = ""
+}

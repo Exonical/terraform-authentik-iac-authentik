@@ -2,8 +2,33 @@
 authentik:
   system:
     system_settings:
+      avatars: "gravatar,initials"
+      default_user_change_name: false
+      default_user_change_email: true
       default_user_change_username: true
       event_retention: "days=365"
+      gdpr_compliance: false
+      impersonation: false
+      default_token_duration: "hours=1"
+      default_token_length: 128
+      footer_links:
+        - name: "Support"
+          href: "https://support.example.com"
+        - name: "Documentation"
+          href: "https://docs.example.com"
+      reputation_lower_limit: -10
+      reputation_upper_limit: 10
+      pagination_default_page_size: 25
+      pagination_max_page_size: 200
+      flags: '{"flows_refresh_others":false,"policies_buffered_access_view":true}'
+    certificate_key_pairs:
+      - name: "test-cert"
+        certificate_data: !env TEST_CERT_PEM
+        key_data: !env TEST_KEY_PEM
+    service_connections:
+      docker:
+        - name: "test-local-docker"
+          local: true
     brands:
       - domain: "test.example.com"
         default: false

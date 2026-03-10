@@ -1,6 +1,11 @@
 locals {
-  system_settings = try(local.system.system_settings, {})
-  brands          = try(local.system.brands, [])
+  system_settings              = try(local.system.system_settings, {})
+  brands                       = try(local.system.brands, [])
+  certificate_key_pairs        = try(local.system.certificate_key_pairs, [])
+  tokens                       = try(local.system.tokens, [])
+  outposts                     = try(local.system.outposts, [])
+  service_connections_docker    = try(local.system.service_connections.docker, [])
+  service_connections_kubernetes = try(local.system.service_connections.kubernetes, [])
 }
 
 module "authentik_system_settings" {
@@ -18,6 +23,7 @@ module "authentik_system_settings" {
   default_token_duration       = try(local.system_settings.default_token_duration, local.defaults.authentik.system.system_settings.default_token_duration, "minutes=30")
   default_token_length         = try(local.system_settings.default_token_length, local.defaults.authentik.system.system_settings.default_token_length, 60)
   footer_links                 = try(local.system_settings.footer_links, [])
+  flags                        = try(local.system_settings.flags, "")
   reputation_lower_limit       = try(local.system_settings.reputation_lower_limit, local.defaults.authentik.system.system_settings.reputation_lower_limit, -5)
   reputation_upper_limit       = try(local.system_settings.reputation_upper_limit, local.defaults.authentik.system.system_settings.reputation_upper_limit, 5)
   pagination_default_page_size = try(local.system_settings.pagination_default_page_size, local.defaults.authentik.system.system_settings.pagination_default_page_size, 20)
@@ -44,4 +50,86 @@ module "authentik_brand" {
   default_application             = try(each.value.default_application, "")
   web_certificate                 = try(each.value.web_certificate, "")
   attributes                      = try(each.value.attributes, "{}")
+}
+
+# ── Certificate Key Pairs ───────────────────────────────────────────────────
+
+module "authentik_certificate_key_pair" {
+  source   = "./modules/terraform-authentik-certificate-key-pair"
+  for_each = { for c in local.certificate_key_pairs : c.name => c if local.modules.authentik_certificate_key_pair == true && var.manage_system }
+
+  name             = each.value.name
+  certificate_data = each.value.certificate_data
+
+  key_data = try(each.value.key_data, "")
+}
+
+locals {
+  certificate_key_pair_id_map = { for k, v in module.authentik_certificate_key_pair : k => v.id }
+}
+
+# ── Service Connections ─────────────────────────────────────────────────────
+
+module "authentik_service_connection_docker" {
+  source   = "./modules/terraform-authentik-service-connection-docker"
+  for_each = { for sc in local.service_connections_docker : sc.name => sc if local.modules.authentik_service_connection_docker == true && var.manage_system }
+
+  name = each.value.name
+
+  local              = try(each.value.local, false)
+  url                = try(each.value.url, "")
+  tls_verification   = try(local.certificate_key_pair_id_map[each.value.tls_verification], each.value.tls_verification, "")
+  tls_authentication = try(local.certificate_key_pair_id_map[each.value.tls_authentication], each.value.tls_authentication, "")
+}
+
+module "authentik_service_connection_kubernetes" {
+  source   = "./modules/terraform-authentik-service-connection-kubernetes"
+  for_each = { for sc in local.service_connections_kubernetes : sc.name => sc if local.modules.authentik_service_connection_kubernetes == true && var.manage_system }
+
+  name = each.value.name
+
+  local      = try(each.value.local, false)
+  kubeconfig = try(each.value.kubeconfig, "")
+  verify_ssl = try(each.value.verify_ssl, true)
+}
+
+locals {
+  service_connection_id_map = merge(
+    { for k, v in module.authentik_service_connection_docker : k => v.id },
+    { for k, v in module.authentik_service_connection_kubernetes : k => v.id },
+  )
+}
+
+# ── Tokens ──────────────────────────────────────────────────────────────────
+
+locals {
+  user_id_map = { for k, v in module.authentik_user : k => v.id }
+}
+
+module "authentik_token" {
+  source   = "./modules/terraform-authentik-token"
+  for_each = { for t in local.tokens : t.identifier => t if local.modules.authentik_token == true && var.manage_system }
+
+  identifier = each.value.identifier
+  user       = try(local.user_id_map[each.value.user], each.value.user)
+
+  description  = try(each.value.description, "")
+  intent       = try(each.value.intent, "")
+  expiring     = try(each.value.expiring, true)
+  expires      = try(each.value.expires, "")
+  retrieve_key = try(each.value.retrieve_key, false)
+}
+
+# ── Outposts ────────────────────────────────────────────────────────────────
+
+module "authentik_outpost" {
+  source   = "./modules/terraform-authentik-outpost"
+  for_each = { for o in local.outposts : o.name => o if local.modules.authentik_outpost == true && var.manage_system }
+
+  name               = each.value.name
+  protocol_providers = [for p in each.value.protocol_providers : try(local.provider_id_map[p], p)]
+
+  type               = try(each.value.type, "")
+  service_connection = try(local.service_connection_id_map[each.value.service_connection], each.value.service_connection, "")
+  config             = try(each.value.config, "")
 }

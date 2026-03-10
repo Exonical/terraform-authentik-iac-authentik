@@ -13,4 +13,5 @@ resource "authentik_system_settings" "this" {
   pagination_default_page_size = var.pagination_default_page_size
   pagination_max_page_size     = var.pagination_max_page_size
   footer_links                 = length(var.footer_links) > 0 ? var.footer_links : null
+  flags                        = var.flags != "" ? var.flags : null
 }
