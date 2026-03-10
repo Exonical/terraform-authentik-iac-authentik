@@ -13,8 +13,8 @@ authentik:
       oauth2:
         - name: "test-oauth2-provider"
           client_id: "test-client-id"
-          authorization_flow: "c010b4a4-4538-49c7-b667-b6429d9b87f4"
-          invalidation_flow: "13e05f7d-bce6-4c53-b2a9-217be00757b5"
+          authorization_flow: "default-provider-authorization-implicit-consent"
+          invalidation_flow: "default-provider-invalidation-flow"
           allowed_redirect_uris:
             - matching_mode: "strict"
               url: "http://localhost:8080/callback"
@@ -23,3 +23,41 @@ authentik:
         slug: "test-application"
         provider: "test-oauth2-provider"
         group: "Testing"
+  flows_and_stages:
+    stages:
+      identification:
+        - name: "test-identification-stage"
+          user_fields:
+            - "username"
+            - "email"
+      password:
+        - name: "test-password-stage"
+          backends:
+            - "authentik.core.auth.InbuiltBackend"
+      user_login:
+        - name: "test-user-login-stage"
+    flows:
+      - name: "Test Login Flow"
+        slug: "test-login-flow"
+        title: "Test Login"
+        designation: "authentication"
+        stage_bindings:
+          - stage: "test-identification-stage"
+            order: 10
+          - stage: "test-password-stage"
+            order: 20
+          - stage: "test-user-login-stage"
+            order: 30
+  rbac:
+    roles:
+      - name: "test-role"
+  endpoint_devices:
+    device_access_groups:
+      - name: "test-device-access-group"
+  directory:
+    groups:
+      - name: "test-group"
+    users:
+      - username: "test-user"
+        name: "Test User"
+        email: "test@example.com"

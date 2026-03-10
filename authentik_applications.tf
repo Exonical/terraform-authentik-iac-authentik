@@ -31,8 +31,8 @@ module "authentik_provider_oauth2" {
   for_each = { for p in local.providers_oauth2 : p.name => p if local.modules.authentik_provider_oauth2 == true && var.manage_applications }
 
   name               = each.value.name
-  authorization_flow = each.value.authorization_flow
-  invalidation_flow  = each.value.invalidation_flow
+  authorization_flow = local.flow_map[each.value.authorization_flow]
+  invalidation_flow  = local.flow_map[each.value.invalidation_flow]
   client_id          = each.value.client_id
 
   client_type                = try(each.value.client_type, local.defaults.authentik.applications.providers.oauth2.client_type, "confidential")
@@ -43,7 +43,7 @@ module "authentik_provider_oauth2" {
   access_code_validity       = try(each.value.access_code_validity, local.defaults.authentik.applications.providers.oauth2.access_code_validity, "minutes=1")
   access_token_validity      = try(each.value.access_token_validity, local.defaults.authentik.applications.providers.oauth2.access_token_validity, "minutes=5")
   refresh_token_validity     = try(each.value.refresh_token_validity, local.defaults.authentik.applications.providers.oauth2.refresh_token_validity, "days=30")
-  authentication_flow        = try(each.value.authentication_flow, "")
+  authentication_flow        = try(local.flow_map[each.value.authentication_flow], "")
   signing_key                = try(each.value.signing_key, "")
   encryption_key             = try(each.value.encryption_key, "")
   logout_method              = try(each.value.logout_method, "")
@@ -58,8 +58,8 @@ module "authentik_provider_saml" {
   for_each = { for p in local.providers_saml : p.name => p if local.modules.authentik_provider_saml == true && var.manage_applications }
 
   name               = each.value.name
-  authorization_flow = each.value.authorization_flow
-  invalidation_flow  = each.value.invalidation_flow
+  authorization_flow = local.flow_map[each.value.authorization_flow]
+  invalidation_flow  = local.flow_map[each.value.invalidation_flow]
   acs_url            = each.value.acs_url
 
   assertion_valid_not_before      = try(each.value.assertion_valid_not_before, local.defaults.authentik.applications.providers.saml.assertion_valid_not_before, "minutes=-5")
@@ -69,7 +69,7 @@ module "authentik_provider_saml" {
   signature_algorithm             = try(each.value.signature_algorithm, local.defaults.authentik.applications.providers.saml.signature_algorithm, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256")
   audience                        = try(each.value.audience, "")
   issuer                          = try(each.value.issuer, "")
-  authentication_flow             = try(each.value.authentication_flow, "")
+  authentication_flow             = try(local.flow_map[each.value.authentication_flow], "")
   sp_binding                      = try(each.value.sp_binding, "")
   signing_kp                      = try(each.value.signing_kp, "")
   verification_kp                 = try(each.value.verification_kp, "")
@@ -90,14 +90,14 @@ module "authentik_provider_proxy" {
   for_each = { for p in local.providers_proxy : p.name => p if local.modules.authentik_provider_proxy == true && var.manage_applications }
 
   name               = each.value.name
-  authorization_flow = each.value.authorization_flow
-  invalidation_flow  = each.value.invalidation_flow
+  authorization_flow = local.flow_map[each.value.authorization_flow]
+  invalidation_flow  = local.flow_map[each.value.invalidation_flow]
   external_host      = each.value.external_host
 
   internal_host                 = try(each.value.internal_host, "")
   internal_host_ssl_validation  = try(each.value.internal_host_ssl_validation, local.defaults.authentik.applications.providers.proxy.internal_host_ssl_validation, true)
   mode                          = try(each.value.mode, "")
-  authentication_flow           = try(each.value.authentication_flow, "")
+  authentication_flow           = try(local.flow_map[each.value.authentication_flow], "")
   cookie_domain                 = try(each.value.cookie_domain, "")
   access_token_validity         = try(each.value.access_token_validity, "")
   refresh_token_validity        = try(each.value.refresh_token_validity, "")
@@ -115,8 +115,8 @@ module "authentik_provider_ldap" {
   for_each = { for p in local.providers_ldap : p.name => p if local.modules.authentik_provider_ldap == true && var.manage_applications }
 
   name        = each.value.name
-  bind_flow   = each.value.bind_flow
-  unbind_flow = each.value.unbind_flow
+  bind_flow   = local.flow_map[each.value.bind_flow]
+  unbind_flow = local.flow_map[each.value.unbind_flow]
   base_dn     = each.value.base_dn
 
   search_mode      = try(each.value.search_mode, local.defaults.authentik.applications.providers.ldap.search_mode, "direct")
@@ -133,8 +133,8 @@ module "authentik_provider_radius" {
   for_each = { for p in local.providers_radius : p.name => p if local.modules.authentik_provider_radius == true && var.manage_applications }
 
   name               = each.value.name
-  authorization_flow = each.value.authorization_flow
-  invalidation_flow  = each.value.invalidation_flow
+  authorization_flow = local.flow_map[each.value.authorization_flow]
+  invalidation_flow  = local.flow_map[each.value.invalidation_flow]
   shared_secret      = each.value.shared_secret
 
   mfa_support       = try(each.value.mfa_support, local.defaults.authentik.applications.providers.radius.mfa_support, true)
@@ -162,9 +162,9 @@ module "authentik_provider_rac" {
   for_each = { for p in local.providers_rac : p.name => p if local.modules.authentik_provider_rac == true && var.manage_applications }
 
   name               = each.value.name
-  authorization_flow = each.value.authorization_flow
+  authorization_flow = local.flow_map[each.value.authorization_flow]
 
-  authentication_flow = try(each.value.authentication_flow, "")
+  authentication_flow = try(local.flow_map[each.value.authentication_flow], "")
   connection_expiry   = try(each.value.connection_expiry, "")
   settings            = try(each.value.settings, "")
   property_mappings   = try(each.value.property_mappings, [])
