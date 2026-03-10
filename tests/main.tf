@@ -10,4 +10,7 @@ module "authentik" {
   manage_endpoint_devices = true
   manage_rbac             = true
   manage_tasks            = true
+  manage_customization    = true
+  manage_events           = true
+  manage_blueprints       = true
 }

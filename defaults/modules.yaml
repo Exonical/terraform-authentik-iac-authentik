@@ -62,9 +62,11 @@ modules:
   authentik_policy_expression: true
   authentik_policy_event_matcher: true
   authentik_policy_password: true
+  authentik_policy_dummy: true
   authentik_policy_reputation: true
   authentik_policy_expiry: true
   authentik_policy_geoip: true
+  authentik_policy_unique_password: true
   authentik_property_mapping_provider_scope: true
   authentik_property_mapping_provider_saml: true
   authentik_property_mapping_provider_scim: true

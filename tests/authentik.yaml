@@ -48,6 +48,15 @@ authentik:
             order: 20
           - stage: "test-user-login-stage"
             order: 30
+  customization:
+    policies:
+      expression:
+        - name: "test-expression-policy"
+          expression: "return True"
+  events:
+    transports:
+      - name: "test-email-transport"
+        mode: "email"
   rbac:
     roles:
       - name: "test-role"
