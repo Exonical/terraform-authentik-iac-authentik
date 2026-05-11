@@ -202,6 +202,14 @@ authentik:
             - "authentik default OAuth Mapping: OpenID 'profile'"
 ```
 
+> **YAML quoting gotcha.** The default Authentik scope-mapping names contain
+> a colon (e.g. `authentik default OAuth Mapping: OpenID 'openid'`). Written
+> **unquoted** as a list item, YAML parses it as a single-key map
+> (`{"authentik default OAuth Mapping": "OpenID 'openid'"}`), not a string —
+> and the failure surfaces deep inside the module as
+> `compact() got object, expected string`. Always wrap colon-bearing names
+> in double quotes, as shown above.
+
 ## Secret injection
 
 YAML files support the `!env` tag (provided by the
