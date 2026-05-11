@@ -12,8 +12,8 @@ module "authentik_event_transport" {
 
   send_once               = try(each.value.send_once, false)
   webhook_url             = try(each.value.webhook_url, "")
-  webhook_mapping_body    = try(each.value.webhook_mapping_body, "")
-  webhook_mapping_headers = try(each.value.webhook_mapping_headers, "")
+  webhook_mapping_body    = try(local.pm_notification_map[each.value.webhook_mapping_body], each.value.webhook_mapping_body, "")
+  webhook_mapping_headers = try(local.pm_notification_map[each.value.webhook_mapping_headers], each.value.webhook_mapping_headers, "")
   email_subject_prefix    = try(each.value.email_subject_prefix, "")
   email_template          = try(each.value.email_template, "")
 }

@@ -6,6 +6,11 @@ locals {
   outposts                     = try(local.system.outposts, [])
   service_connections_docker    = try(local.system.service_connections.docker, [])
   service_connections_kubernetes = try(local.system.service_connections.kubernetes, [])
+
+  # Sensitive-safe lookup maps: for_each keys use names only; sensitive fields
+  # (key_data, kubeconfig) flow through these maps without tainting the set.
+  certificate_key_pair_map        = { for c in local.certificate_key_pairs : c.name => c }
+  service_connection_kubernetes_map = { for sc in local.service_connections_kubernetes : sc.name => sc }
 }
 
 module "authentik_system_settings" {
@@ -48,7 +53,7 @@ module "authentik_brand" {
   flow_user_settings              = try(each.value.flow_user_settings, "")
   flow_device_code                = try(each.value.flow_device_code, "")
   default_application             = try(each.value.default_application, "")
-  web_certificate                 = try(each.value.web_certificate, "")
+  web_certificate                 = try(local.cert_map[each.value.web_certificate], each.value.web_certificate, "")
   attributes                      = try(each.value.attributes, "{}")
 }
 
@@ -56,16 +61,12 @@ module "authentik_brand" {
 
 module "authentik_certificate_key_pair" {
   source   = "./modules/terraform-authentik-certificate-key-pair"
-  for_each = { for c in local.certificate_key_pairs : c.name => c if local.modules.authentik_certificate_key_pair == true && var.manage_system }
+  for_each = local.modules.authentik_certificate_key_pair == true && var.manage_system ? toset([for c in local.certificate_key_pairs : c.name]) : []
 
-  name             = each.value.name
-  certificate_data = each.value.certificate_data
+  name             = each.key
+  certificate_data = local.certificate_key_pair_map[each.key].certificate_data
 
-  key_data = try(each.value.key_data, "")
-}
-
-locals {
-  certificate_key_pair_id_map = { for k, v in module.authentik_certificate_key_pair : k => v.id }
+  key_data = try(local.certificate_key_pair_map[each.key].key_data, "")
 }
 
 # ── Service Connections ─────────────────────────────────────────────────────
@@ -78,19 +79,19 @@ module "authentik_service_connection_docker" {
 
   local              = try(each.value.local, false)
   url                = try(each.value.url, "")
-  tls_verification   = try(local.certificate_key_pair_id_map[each.value.tls_verification], each.value.tls_verification, "")
-  tls_authentication = try(local.certificate_key_pair_id_map[each.value.tls_authentication], each.value.tls_authentication, "")
+  tls_verification   = try(local.cert_map[each.value.tls_verification], each.value.tls_verification, "")
+  tls_authentication = try(local.cert_map[each.value.tls_authentication], each.value.tls_authentication, "")
 }
 
 module "authentik_service_connection_kubernetes" {
   source   = "./modules/terraform-authentik-service-connection-kubernetes"
-  for_each = { for sc in local.service_connections_kubernetes : sc.name => sc if local.modules.authentik_service_connection_kubernetes == true && var.manage_system }
+  for_each = local.modules.authentik_service_connection_kubernetes == true && var.manage_system ? toset([for sc in local.service_connections_kubernetes : sc.name]) : []
 
-  name = each.value.name
+  name = each.key
 
-  local      = try(each.value.local, false)
-  kubeconfig = try(each.value.kubeconfig, "")
-  verify_ssl = try(each.value.verify_ssl, true)
+  local      = try(local.service_connection_kubernetes_map[each.key].local, false)
+  kubeconfig = try(local.service_connection_kubernetes_map[each.key].kubeconfig, "")
+  verify_ssl = try(local.service_connection_kubernetes_map[each.key].verify_ssl, true)
 }
 
 locals {

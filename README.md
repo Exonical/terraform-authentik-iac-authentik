@@ -84,7 +84,7 @@ module "authentik" {
 |------|-------------|------|---------|
 | yaml_directories | List of paths to YAML directories. | `list(string)` | `[]` |
 | yaml_files | List of paths to YAML files. | `list(string)` | `[]` |
-| model | Native Terraform data structure (alternative to YAML). | `map(any)` | `{}` |
+| model | Native Terraform data structure (alternative to YAML). | `any` | `{}` |
 | manage_system | Flag to manage system settings. | `bool` | `false` |
 | manage_applications | Flag to manage applications. | `bool` | `false` |
 | manage_directory | Flag to manage directory. | `bool` | `false` |
@@ -162,4 +162,139 @@ authentik:
   tasks:
     schedules: [ ... ]
 ```
+
+## Name-based references
+
+Many cross-resource references accept either UUIDs or human-readable names/slugs.
+The module resolves names by looking up existing Authentik objects via data
+sources (and falls back to UUIDs that match the v4 pattern). Module-managed
+resources of the same kind are also resolvable by name from anywhere in the
+config.
+
+| Field | Reference type | Resolution |
+|-------|----------------|------------|
+| `authorization_flow`, `invalidation_flow`, `authentication_flow`, `bind_flow`, `unbind_flow`, `enrollment_flow`, `pre_authentication_flow`, `recovery_flow`, `passwordless_flow`, `target_flow`, `configure_flow`, `flow_*` (brand) | Flow **slug** | `data "authentik_flow"` by slug |
+| `signing_key`, `encryption_key`, `signing_kp`, `verification_kp`, `encryption_kp`, `certificate`, `web_certificate`, `tls_verification`, `tls_authentication` | Cert **name** | `data "authentik_certificate_key_pair"` by name |
+| `property_mappings` (OAuth2) | Scope mapping **name** | `data "authentik_property_mapping_provider_scope"` |
+| `property_mappings` (SAML) | SAML mapping **name** | `data "authentik_property_mapping_provider_saml"` |
+| `property_mappings` (SCIM / Google Workspace / Microsoft Entra) | SCIM mapping **name** | `data "authentik_property_mapping_provider_scim"` |
+| `property_mappings` (RAC) | RAC mapping **name** | `data "authentik_property_mapping_provider_rac"` |
+| `property_mappings` (Radius) | Radius mapping **name** | `data "authentik_property_mapping_provider_radius"` |
+| `property_mappings` (sources) | Source mapping **name** | `data "authentik_property_mapping_source_ldap"` (LDAP); other source types resolvable only when module-managed |
+| `webhook_mapping_body`, `webhook_mapping_headers` (event transport) | Notification mapping **name** | Resolvable only when module-managed (no by-name data source upstream) |
+
+Example:
+
+```yaml
+authentik:
+  applications:
+    providers:
+      oauth2:
+        - name: "grafana"
+          client_id: "grafana"
+          authorization_flow: "default-provider-authorization-implicit-consent"
+          invalidation_flow:  "default-provider-invalidation-flow"
+          signing_key: "authentik Self-signed Certificate"
+          property_mappings:
+            - "authentik default OAuth Mapping: OpenID 'openid'"
+            - "authentik default OAuth Mapping: OpenID 'email'"
+            - "authentik default OAuth Mapping: OpenID 'profile'"
+```
+
+## Secret injection
+
+YAML files support the `!env` tag (provided by the
+[`netascode/utils`](https://registry.terraform.io/providers/netascode/utils/latest)
+provider) to inject secrets from environment variables. This avoids storing
+secrets in plaintext YAML:
+
+```yaml
+authentik:
+  system:
+    certificate_key_pairs:
+      - name: "wildcard"
+        certificate_data: !env WILDCARD_CERT_PEM
+        key_data:         !env WILDCARD_KEY_PEM
+```
+
+> **Note:** Bash `$(cat file.pem)` command substitution strips trailing
+> newlines. Export with a literal newline (e.g.
+> `export WILDCARD_CERT_PEM="$(cat cert.pem)"$'\n'`) or use a secret manager
+> (Vault, CI secrets) that preserves them — otherwise the Authentik API
+> stores the PEM with a trailing newline that the local env value lacks,
+> causing perpetual drift.
+
+## Known limitations & patterns
+
+### `var.model` + plan-time-unknown values
+
+The module avoids the `yamlencode → yaml_merge → yamldecode` round-trip when
+only `var.model` is provided (no `yaml_files` / `yaml_directories`). This
+prevents `var.model` values whose contents include `random_password.x.result`,
+`data.foo.bar.id`, or other plan-time-unknown values from tainting the entire
+decoded structure as dynamic.
+
+**Partial fix only.** Terraform's `any`-typed variable handling propagates
+deep-nested unknowns through field-access chains. If you put an unknown value
+inside a nested list (e.g.
+`var.model.authentik.applications.providers.oauth2[0].client_secret = random_password.x.result`),
+Terraform may still mark sibling `for_each` keysets (`provider name`, etc.)
+as unknown at plan time, producing
+`Error: Invalid for_each argument`. This is a Terraform language limitation,
+not a bug in this module.
+
+**Recommended patterns:**
+
+1. **Let Authentik generate secrets where possible.** OAuth2 `client_secret`,
+   tokens, and similar fields are sensitive *and computed* — omit them on the
+   input side and read the generated value from the module output.
+
+   ```hcl
+   model = {
+     authentik = {
+       applications = {
+         providers = {
+           oauth2 = [{
+             name               = "grafana"
+             client_id          = "grafana"
+             # client_secret omitted → Authentik generates it
+             authorization_flow = "default-provider-authorization-implicit-consent"
+             invalidation_flow  = "default-provider-invalidation-flow"
+           }]
+         }
+       }
+     }
+   }
+   ```
+
+2. **For caller-supplied secrets, wrap with `nonsensitive()` at the module
+   boundary** if your for_each keys collide with sensitive sibling fields.
+   This strips Terraform's sensitivity tracking just at the for_each level;
+   keep the actual secret stored in a sensitive output / state.
+
+3. **Mix YAML + secret env vars.** Define the static structure in YAML and
+   use `!env` for secrets. The YAML path is statically typed and `!env`
+   resolves to known strings at parse time, sidestepping `var.model`'s
+   `any`-typed field-access limitation entirely.
+
+### Sensitive fields and `for_each`
+
+Provider modules (oauth2, radius, scim, microsoft_entra, google_workspace) and
+source modules (ldap, oauth, plex, scim) are wired with a sensitive-safe
+`for_each` pattern: the key set is built from non-sensitive names/slugs only,
+and config values flow through a separate lookup map. This lets sensitive
+fields (`client_secret`, `shared_secret`, `token`, `bind_password`,
+`consumer_secret`, `plex_token`, `kubeconfig`, `key_data`) carry through to
+the underlying resource without requiring callers to `nonsensitive()` the
+whole object.
+
+```hcl
+# Before (would fail with sensitive value):
+# for_each = { for p in local.providers_oauth2 : p.name => p }
+
+# After (key set is non-sensitive; sensitive values flow via lookup map):
+# for_each = toset([for p in local.providers_oauth2 : p.name])
+# client_secret = local.oauth2_provider_map[each.key].client_secret
+```
+
 # terraform-authentik-iac-authentik

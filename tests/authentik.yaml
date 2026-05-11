@@ -1,4 +1,11 @@
 ---
+# Disable authentik_system_settings: upstream provider v2026.2.0 lacks the
+# `enterprise_audit_include_expanded_diff` field that Authentik servers
+# >= 2026.2.1 require. Verified against 2026.2.2 — not fixed yet. Unrelated
+# to the bug-fixes in this repo.
+modules:
+  authentik_system_settings: false
+
 authentik:
   system:
     system_settings:
@@ -43,6 +50,13 @@ authentik:
           allowed_redirect_uris:
             - matching_mode: "strict"
               url: "http://localhost:8080/callback"
+          # Bug 3 regression: cert reference by name (resolves via cert_map)
+          signing_key: "test-cert"
+          # Bug 2 regression: property mappings by name (resolves via pm_scope_map)
+          property_mappings:
+            - "authentik default OAuth Mapping: OpenID 'openid'"
+            - "authentik default OAuth Mapping: OpenID 'email'"
+            - "authentik default OAuth Mapping: OpenID 'profile'"
     applications:
       - name: "Test Application"
         slug: "test-application"

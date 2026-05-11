@@ -7,15 +7,33 @@ locals {
   yaml_strings_files = [
     for file in var.yaml_files : file(file)
   ]
-  model_strings   = length(keys(var.model)) != 0 ? [yamlencode(var.model)] : []
-  model_string    = provider::utils::yaml_merge(concat(local.yaml_strings_directories, local.yaml_strings_files, local.model_strings))
-  model           = yamldecode(local.model_string)
-  user_defaults   = { "defaults" : try(local.model["defaults"], {}) }
-  defaults_string = provider::utils::yaml_merge([file("${path.module}/defaults/defaults.yaml"), yamlencode(local.user_defaults)])
-  defaults        = yamldecode(local.defaults_string)["defaults"]
-  user_modules    = { "modules" : try(local.model["modules"], {}) }
-  modules_string  = provider::utils::yaml_merge([file("${path.module}/defaults/modules.yaml"), yamlencode(local.user_modules)])
-  modules         = yamldecode(local.modules_string)["modules"]
+  # Short-circuit the yamlencode->yaml_merge->yamldecode round-trip when only
+  # var.model is provided. Without this, any plan-time-unknown values inside
+  # var.model (random_password.x.result, data source IDs, sensitive outputs)
+  # taint the entire decoded structure as dynamic, breaking downstream
+  # for_each enumeration of statically-known YAML fields.
+  #
+  # In model_only_mode, local.model_string is the empty string, so yamldecode
+  # fails and try() falls back to var.model verbatim — preserving its native
+  # type information. We avoid a plain ternary because Terraform requires both
+  # branches to have consistent statically-inferable types, which doesn't hold
+  # when var.model has a richer/different shape than the yamldecoded value.
+  model_only_mode = length(var.yaml_directories) == 0 && length(var.yaml_files) == 0
+  model_strings   = local.model_only_mode || length(keys(var.model)) == 0 ? [] : [yamlencode(var.model)]
+  model_string    = local.model_only_mode ? "" : provider::utils::yaml_merge(concat(local.yaml_strings_directories, local.yaml_strings_files, local.model_strings))
+  model           = try(yamldecode(local.model_string), var.model)
+
+  # Defaults/modules merge: in model_only_mode, only use the static YAML files
+  # (defaults.yaml / modules.yaml) and merge user overrides at the access site
+  # via try(). Going through yamlencode(local.user_*) would taint local.modules
+  # and local.defaults with any unknowns nested in var.model.
+  defaults_string = local.model_only_mode ? file("${path.module}/defaults/defaults.yaml") : provider::utils::yaml_merge([file("${path.module}/defaults/defaults.yaml"), yamlencode({ "defaults" : try(local.model["defaults"], {}) })])
+  defaults_yaml   = yamldecode(local.defaults_string)["defaults"]
+  defaults        = local.model_only_mode ? merge(local.defaults_yaml, try(var.model.defaults, {})) : local.defaults_yaml
+
+  modules_string  = local.model_only_mode ? file("${path.module}/defaults/modules.yaml") : provider::utils::yaml_merge([file("${path.module}/defaults/modules.yaml"), yamlencode({ "modules" : try(local.model["modules"], {}) })])
+  modules_yaml    = yamldecode(local.modules_string)["modules"]
+  modules         = local.model_only_mode ? merge(local.modules_yaml, try(var.model.modules, {})) : local.modules_yaml
 
   # Authentik section shortcuts
   system           = try(local.model.authentik.system, {})

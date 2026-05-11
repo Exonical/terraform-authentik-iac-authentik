@@ -12,7 +12,7 @@ variable "yaml_files" {
 
 variable "model" {
   description = "As an alternative to YAML files, a native Terraform data structure can be provided as well."
-  type        = map(any)
+  type        = any
   default     = {}
 }
 
