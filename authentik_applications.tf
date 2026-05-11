@@ -88,7 +88,7 @@ module "authentik_provider_saml" {
   signing_kp                      = try(local.cert_map[local.saml_provider_map[each.key].signing_kp], local.saml_provider_map[each.key].signing_kp, "")
   verification_kp                 = try(local.cert_map[local.saml_provider_map[each.key].verification_kp], local.saml_provider_map[each.key].verification_kp, "")
   encryption_kp                   = try(local.cert_map[local.saml_provider_map[each.key].encryption_kp], local.saml_provider_map[each.key].encryption_kp, "")
-  name_id_mapping                 = try(local.saml_provider_map[each.key].name_id_mapping, "")
+  name_id_mapping                 = try(local.pm_saml_map[local.saml_provider_map[each.key].name_id_mapping], local.saml_provider_map[each.key].name_id_mapping, "")
   default_relay_state             = try(local.saml_provider_map[each.key].default_relay_state, "")
   sls_url                         = try(local.saml_provider_map[each.key].sls_url, "")
   sls_binding                     = try(local.saml_provider_map[each.key].sls_binding, "")

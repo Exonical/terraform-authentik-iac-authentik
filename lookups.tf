@@ -144,8 +144,11 @@ locals {
   ])
 
   # --- SAML provider mappings ---
+  # name_id_mapping references the same set of property mappings as
+  # property_mappings, so we collect both into one lookup pool.
   all_pm_saml_refs = distinct(compact(flatten([
     [for p in local.providers_saml : try(p.property_mappings, [])],
+    [for p in local.providers_saml : try(p.name_id_mapping, "")],
   ])))
   pm_saml_uuid_refs = toset([for r in local.all_pm_saml_refs : r if can(regex(local.uuid_re, r))])
   pm_saml_name_refs = toset([
