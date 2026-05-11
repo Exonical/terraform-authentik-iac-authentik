@@ -103,6 +103,7 @@ module "authentik" {
 |------|-------------|
 | default_values | All default values. |
 | model | Full model. |
+| oauth2_client_secrets | Map of OAuth2 provider name → client_secret (sensitive). Surfaces Authentik-generated secrets and pass-through user-supplied values. |
 
 ## Data Model
 
@@ -223,6 +224,50 @@ authentik:
 > (Vault, CI secrets) that preserves them — otherwise the Authentik API
 > stores the PEM with a trailing newline that the local env value lacks,
 > causing perpetual drift.
+
+### Server-generated secrets
+
+OAuth2 `client_secret` is `Optional + Computed + Sensitive` in the provider
+schema: omit it on the input side and Authentik generates one on the server.
+The data source `authentik_provider_oauth2_config` only exposes URLs (no
+`client_id` / `client_secret`), so the only way to read the generated secret
+is via the module's own output, which surfaces it from the resource attribute.
+
+The module exposes a per-provider map via the `oauth2_client_secrets` output:
+
+```yaml
+authentik:
+  applications:
+    providers:
+      oauth2:
+        - name: "rocketchat"
+          client_id: "rocketchat"
+          authorization_flow: "default-provider-authorization-implicit-consent"
+          invalidation_flow:  "default-provider-invalidation-flow"
+          # client_secret omitted → Authentik generates one
+```
+
+```hcl
+module "authentik" {
+  source = "..."
+  yaml_files          = ["authentik.yaml"]
+  manage_applications = true
+}
+
+# Forward the generated secret into Vault (or any sensitive sink).
+resource "vault_kv_secret_v2" "rocketchat_oidc" {
+  mount = "kv"
+  name  = "apps/rocketchat/oidc"
+  data_json = jsonencode({
+    client_id     = "rocketchat"
+    client_secret = module.authentik.oauth2_client_secrets["rocketchat"]
+  })
+}
+```
+
+Providers that *do* supply `client_secret` (e.g. via `!env`) pass through to
+the same output map, so callers can use a single lookup regardless of
+generation strategy.
 
 ## Known limitations & patterns
 

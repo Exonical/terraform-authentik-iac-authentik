@@ -27,6 +27,11 @@ provider "authentik" {
 #   README under "Known limitations & patterns".
 # - Run: `terraform apply && terraform plan` should show no changes.
 
+output "oauth2_client_secrets" {
+  value     = module.authentik.oauth2_client_secrets
+  sensitive = true
+}
+
 module "authentik" {
   source = "../.."
 
